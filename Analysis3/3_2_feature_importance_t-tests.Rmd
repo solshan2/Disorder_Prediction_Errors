@@ -1,0 +1,73 @@
+---
+title: "Network Importance Post-Hocs"
+author: "Kyle Baacke, Sarah Olshan"
+date: "8/10/2023"
+output: html_document
+---
+
+# Description
+This script compares the classification/misclassification rates of the models with certain network edges permuted versus randomly permuted collections of edges of the same size.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(stringr)
+library(effectsize)
+```
+
+# Read in Data
+```{r}
+data = read.csv("FeatureImportance_followup_indexed.csv")
+size_index = read.csv('FeatureImportance_index.csv')
+target_size_index = size_index[grepl('*_ALL',size_index$Label),]
+```
+
+# Run t-tests for each ICN
+```{r}
+conds = c('ADHD','BIPOLAR','SCHZ')
+test_values = c("test_accuracy","macro.avg.precision","macro.avg.recall","macro.avg.f1.score")
+listHolder = list()
+for (n_perm in unique(target_size_index$NumberPermuted)){
+  sub_data = data[(data$N_Permuted==n_perm),]
+  sub_data$label = as.factor(sub_data$label)
+  # print(sub_data$Label[1])
+  # print(paste("    Rand-",n_perm, sep=""))
+  for (test_value in test_values){
+    # print(paste('    ',test_value, sep=""))
+    stat_t_test = t.test(sub_data[,c(test_value)] ~ sub_data$label)
+    stat_t_test['metric'] = test_value
+    stat_t_test['n_perm'] = n_perm
+    stat_t_test['NetworkSubset'] = sub_data$Label[1]
+    stat_t_test['SD'] = sd(sub_data[sub_data$label==unique(sub_data$label)[1],c(test_value)])
+    stat_t_test['r_SD'] = sd(sub_data[sub_data$label==unique(sub_data$label)[2],c(test_value)])
+    d_obj = cohens_d(sub_data[sub_data$label==unique(sub_data$label)[1],c(test_value)], sub_data[sub_data$label==unique(sub_data$label)[2],c(test_value)])
+    stat_test_df = as.data.frame(do.call(cbind, stat_t_test))
+    stat_test_df = cbind(stat_test_df,d_obj)
+    listHolder[[length(listHolder)+1]] = stat_test_df
+  }
+  for (cond1 in conds){
+    for (cond2 in conds){
+      outcome = paste(cond1, '.Predicted', cond2, '_percent', sep = "")
+      # print(outcome)
+      stat_t_test = t.test(sub_data[,c(outcome)] ~ sub_data$label)
+      stat_t_test['metric'] = outcome
+      stat_t_test['n_perm'] = n_perm
+      stat_t_test['NetworkSubset'] = sub_data$Label[1]
+      stat_t_test['SD'] = sd(sub_data[sub_data$label==unique(sub_data$label)[1],c(outcome)])
+      stat_t_test['r_SD'] = sd(sub_data[sub_data$label==unique(sub_data$label)[2],c(outcome)])
+      d_obj = cohens_d(sub_data[sub_data$label==unique(sub_data$label)[1],c(outcome)], sub_data[sub_data$label==unique(sub_data$label)[2],c(outcome)])
+      stat_test_df = as.data.frame(do.call(cbind, stat_t_test))
+      stat_test_df = cbind(stat_test_df,d_obj)
+      listHolder[[length(listHolder)+1]] = stat_test_df
+    }
+  }
+}
+
+```
+
+# Output Table of results
+```{r}
+compiled_results = as.data.frame(do.call(rbind, listHolder))
+write.csv(compiled_results, "Network Permutation t-test results -appended 01.csv")
+```
+

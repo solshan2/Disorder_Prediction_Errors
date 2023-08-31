@@ -1,0 +1,676 @@
+---
+title: "UCLA_Regression-V2"
+author: "Kyle Baacke"
+date: "8/20/2022"
+output: html_document
+---
+
+
+# Imports
+```{r, echo=FALSE, include=FALSE, redults='hide'}
+# install.packages("corrplot")
+# install.packages("lmSupport")
+library(corrplot)
+library(stats)
+library(car)
+library(QuantPsyc)
+# library(lmSupport)
+library(dplyr)
+```
+
+# Read in Data
+
+```{r}
+# phen_acc_schz <- read.csv('C:/Users/sarah/Local_Documents/Data/UCLA_Data/phen_acc_schz.csv')
+# phen_acc_bipolar <- read.csv('C:/Users/sarah/Local_Documents/Data/UCLA_Data/phen_acc_bipolar.csv')
+# phen_acc_schz <- read.csv('C:/Users/sarah/Local_Documents/Data/UCLA_Data/phen_acc_schz-v2.csv')
+# phen_acc_bipolar <- read.csv('C:/Users/sarah/Local_Documents/Data/UCLA_Data/phen_acc_bipolar-v2.csv')
+phen_acc_schz <- read.csv('phen_acc_schz-v2.csv')
+phen_acc_bipolar <- read.csv('phen_acc_bipolar-v2.csv')
+```
+
+# Standardize values of interest
+
+```{r}
+standardized_columns = c()
+scale_prefixes = c('saps','sans','bipolarii')
+for(prefix in scale_prefixes){
+  prefix_cols_schz = colnames(phen_acc_schz[,grepl(prefix, colnames(phen_acc_schz))])
+  for(col in prefix_cols_schz){
+    if ((min(phen_acc_schz[,col], na.rm = TRUE)==0) & (max(phen_acc_schz[,col], na.rm = TRUE)==1)){
+      # print(paste('SCHZ column with only two levels: ',col, sep = ''))
+      standardized_columns = c(standardized_columns, c(col))
+    } else {
+      std_colname = paste(col, '_z', sep='')
+      phen_acc_schz[,std_colname] = scale(phen_acc_schz[,col])
+      standardized_columns = c(standardized_columns, c(std_colname))
+      phen_acc_schz[,col] = NULL
+    }
+    
+  }
+  prefix_cols_bipolar = colnames(phen_acc_bipolar[,grepl(prefix, colnames(phen_acc_bipolar))])
+  for(col in prefix_cols_bipolar){
+    if ((min(phen_acc_bipolar[,col], na.rm = TRUE)==0) & (max(phen_acc_bipolar[,col], na.rm = TRUE)==1)){
+      # print(paste('Bipolar column with only two levels: ',col, sep = ''))
+      standardized_columns = c(standardized_columns, c(col))
+    } else {
+      std_colname = paste(col, '_z', sep='')
+      phen_acc_bipolar[,std_colname] = scale(phen_acc_bipolar[,col])
+      standardized_columns = c(standardized_columns, c(std_colname))
+      phen_acc_bipolar[,col] = NULL
+    }
+  }
+}
+
+```
+
+# Predictor management
+
+## Remove columns with NA Values
+
+```{r}
+phen_acc_schz <- phen_acc_schz[,colSums(is.na(phen_acc_schz))<nrow(phen_acc_schz)]
+phen_acc_bipolar <- phen_acc_bipolar[,colSums(is.na(phen_acc_bipolar))<nrow(phen_acc_bipolar)]
+
+standardized_columns = unique(standardized_columns)
+phen_acc_bipolar$Male = ifelse(phen_acc_bipolar$gender_x=='M', 1, 0)
+phen_acc_schz$Male = ifelse(phen_acc_schz$gender_x=='M', 1, 0)
+```
+
+## Generate lists of standardized predictors in each scale
+
+```{r}
+model_string_start = "rate_misclass ~ "
+saps_predictors = c(standardized_columns[grepl('saps', standardized_columns)])
+sans_predictors = c(standardized_columns[grepl('sans', standardized_columns)])
+bipolar_predictors = c(standardized_columns[grepl('bipolarii', standardized_columns)])
+```
+
+## Schiz
+
+### Factor level analysis
+
+```{r}
+factor_model_schz = lm(
+  rate_misclass ~ 
+    factor_avolition + # "average items SANS12, SANS13, SANS14, SANS15"
+    factor_bluntaffect + # "average items SANS1, SANS2, SANS3, SANS4, SANS5, SANS6"
+    factor_alogia + # "average items SANS8, SANS9, SANS10"
+    factor_anhedonia + # "average items SANS17, SANS18, SANS19, SANS20"
+    factor_attention + # "average items SANS22, SANS23"
+    factor_bizarrebehav + # "average SAPS items 21-24"
+    factor_posformalthought + # "average SAPS items 26-33"
+    factor_delusions + # "average SAPS items 8-19"
+    factor_hallucinations + # "average SAPS items 1, 2, 3, 4, 5, 6",
+    factor_inappaffect + # "item SAPS35"
+    bipollarii_mood + # "Factor 1-Mood Liability: Questions 1-9 (item 7 reverse scored)"
+    bipollarii_daydreaming + # "Factor 3-Daydreaming: Questions 18-23 (item 20 reverse scored)"
+    bipollarii_energy + # "Factor 2-Energy-Activity: Questions 10-17"
+    bipollarii_anxiety + # "Factor 4-Social Anxiety: Questions 24-31 (item 29 reverse scored)"
+    age_x +
+    Male
+    , 
+  data = phen_acc_schz
+  )
+
+summary(factor_model_schz)
+
+schz_factor_step = step(factor_model_schz, direction = 'backward', trace = FALSE)
+schz_final_factor_model = lm(schz_factor_step$call$formula, data = phen_acc_schz)
+
+summary(schz_final_factor_model)
+sort(vif(schz_final_factor_model),decreasing =T)
+sort(lm.beta(schz_final_factor_model),decreasing =T)
+# modelEffectSizes(schz_final_factor_model, Digits = 2)
+```
+
+
+Note: We cannot start with all predictors from all scales because we would have more predictors than observations
+
+### SAPS
+
+#### Generate model string
+
+```{r}
+schz_saps_predictor_string = paste(c(saps_predictors[saps_predictors %in% colnames(phen_acc_schz)], c('Male','age_x')), collapse = ' + ')
+schz_saps_model_string = paste(model_string_start, schz_saps_predictor_string, sep = '')
+```
+
+#### Backward stepwise regression
+
+```{r}
+full_model_schiz_saps = lm(schz_saps_model_string, data = phen_acc_schz)
+schiz_saps_step = step(full_model_schiz_saps, direction = 'backward', trace = FALSE)
+schiz_saps_step
+```
+
+#### Results from final model
+
+```{r}
+final_model_schz_saps = lm(schiz_saps_step$call$formula, data = phen_acc_schz)
+
+summary(final_model_schz_saps)
+sort(vif(final_model_schz_saps),decreasing =T)
+sort(lm.beta(final_model_schz_saps),decreasing =T)
+# modelEffectSizes(final_model_schz_saps, Digits = 2)
+```
+
+
+### SANS
+
+#### Generate model string
+
+```{r}
+schz_sans_predictor_string = paste(c(sans_predictors[sans_predictors %in% colnames(phen_acc_schz)], c('Male','age_x')), collapse = ' + ')
+schz_sans_model_string = paste(model_string_start, schz_sans_predictor_string, sep = '')
+```
+
+#### Backward stepwise regression
+
+```{r}
+full_model_schiz_sans = lm(schz_sans_model_string, data = phen_acc_schz)
+schiz_sans_step = step(full_model_schiz_sans, direction = 'backward', trace = FALSE)
+schiz_sans_step
+```
+
+#### Results from final model
+
+```{r}
+final_model_schz_sans = lm(schiz_sans_step$call$formula, data = phen_acc_schz)
+
+summary(final_model_schz_sans)
+sort(vif(final_model_schz_sans),decreasing =T)
+sort(lm.beta(final_model_schz_sans),decreasing =T)
+# modelEffectSizes(final_model_schz_sans, Digits = 2)
+```
+
+### BIPOLARII
+
+#### Generate model string
+
+```{r}
+schz_bipolar_predictor_string = paste(c(bipolar_predictors[bipolar_predictors %in% colnames(phen_acc_schz)], c('Male','age_x')), collapse = ' + ')
+schz_bipolar_model_string = paste(model_string_start, schz_bipolar_predictor_string, sep = '')
+```
+
+#### Backward stepwise regression
+
+```{r}
+full_model_schiz_bipolar = lm(schz_bipolar_model_string, data = phen_acc_schz)
+schiz_bipolar_step = step(full_model_schiz_bipolar, direction = 'backward', trace = FALSE)
+schiz_bipolar_step
+```
+
+#### Results from final model
+
+```{r}
+final_model_schz_bipolar = lm(schiz_bipolar_step$call$formula, data = phen_acc_schz)
+
+summary(final_model_schz_bipolar)
+sort(vif(final_model_schz_bipolar),decreasing =T)
+sort(lm.beta(final_model_schz_bipolar),decreasing =T)
+# modelEffectSizes(final_model_schz_bipolar, Digits = 2)
+
+```
+
+### SAPS + SAPS final models
+
+#### Backward stepwise regression
+
+```{r}
+full_model_schiz_sans_saps = lm(formula = rate_misclass ~ saps17_z + saps1_z + saps30_z + 
+    saps11_z + saps18_z + saps31_z + saps33_z + saps10_z + saps5_z + 
+    saps27_z + saps19_z + saps7_z + saps15_z + saps32_z + saps25_z + 
+    saps34_z + saps24_z + sans2_z + sans22_z + sans1_z + sans7_z + 
+    sans13_z + sans19_z + sans3_z + sans24_z
+ , 
+  data = phen_acc_schz)
+schiz_sans_saps_step = step(full_model_schiz_sans_saps, direction = 'backward', trace = FALSE)
+schiz_sans_saps_step
+```
+
+#### Results from final model
+
+```{r}
+final_model_schz_sans_saps = lm(schiz_sans_saps_step$call$formula, data = phen_acc_schz)
+
+summary(final_model_schz_sans_saps)
+sort(vif(final_model_schz_sans_saps),decreasing =T)
+sort(lm.beta(final_model_schz_sans_saps),decreasing =T)
+# modelEffectSizes(final_model_schz_sans_saps, Digits = 2)
+
+```
+
+### (SAPS + SANS) + BIPOLARII
+
+#### Backward stepwise regression
+
+```{r}
+full_model_schiz_combined = lm(rate_misclass ~ saps17_z + saps1_z + saps30_z + 
+    saps11_z + saps18_z + saps31_z + saps33_z + saps5_z + saps19_z + 
+    saps7_z + saps15_z + saps32_z + saps34_z + saps24_z + sans22_z + 
+    sans1_z + sans7_z + sans13_z + sans19_z + sans3_z + sans24_z + bipolarii12 + bipolarii10 + bipolarii7 + 
+    bipolarii5 + bipolarii22 + bipolarii3 + bipolarii19 + bipolarii16 + 
+    bipolarii31 + bipolarii1 + bipolarii21 + bipolarii29 + bipolarii9 + 
+    bipolarii13 + bipolarii14 + bipolarii24 + bipolarii25 + Male + 
+    age_x, data = phen_acc_schz)
+schiz_combined_step = step(full_model_schiz_combined, direction = 'backward', trace = FALSE)
+schiz_combined_step
+```
+
+#### Results form final model
+
+Interestingly, all the bipolarii items were eliminated in the stepwise regression procedure when including them in the full model with the selected saps and sans items.
+
+```{r}
+final_model_schz_combined = lm(formula = rate_misclass ~ saps17_z + saps1_z + saps30_z + 
+    saps11_z + saps18_z + saps33_z + saps5_z + saps19_z + saps15_z + 
+    saps34_z + saps24_z + sans22_z + sans1_z + sans7_z + sans3_z + 
+    sans24_z + bipolarii7 + bipolarii5 + bipolarii22 + bipolarii3 + 
+    bipolarii19 + bipolarii16 + bipolarii31 + bipolarii1 + bipolarii21 + 
+    bipolarii29 + bipolarii9 + bipolarii13 + bipolarii14 + bipolarii24 + 
+    bipolarii25 + Male, data = phen_acc_schz)
+
+summary(final_model_schz_combined)
+sort(vif(final_model_schz_combined),decreasing =T)
+sort(lm.beta(final_model_schz_combined),decreasing =T)
+# modelEffectSizes(final_model_schz_combined, Digits = 2)
+
+```
+
+## Bipolar
+
+### Factor level analysis
+
+```{r}
+
+factor_model_bipolar = lm(
+  rate_misclass ~ 
+    factor_avolition + # "average items SANS12, SANS13, SANS14, SANS15"
+    factor_bluntaffect + # "average items SANS1, SANS2, SANS3, SANS4, SANS5, SANS6"
+    factor_alogia + # "average items SANS8, SANS9, SANS10"
+    factor_anhedonia + # "average items SANS17, SANS18, SANS19, SANS20"
+    factor_attention + # "average items SANS22, SANS23"
+    factor_bizarrebehav + # "average SAPS items 21-24"
+    factor_posformalthought + # "average SAPS items 26-33"
+    factor_delusions + # "average SAPS items 8-19"
+    factor_hallucinations + # "average SAPS items 1, 2, 3, 4, 5, 6",
+    factor_inappaffect + # "item SAPS35"
+    bipollarii_mood + # "Factor 1-Mood Liability: Questions 1-9 (item 7 reverse scored)"
+    bipollarii_daydreaming + # "Factor 3-Daydreaming: Questions 18-23 (item 20 reverse scored)"
+    bipollarii_energy + # "Factor 2-Energy-Activity: Questions 10-17"
+    bipollarii_anxiety + age_x + Male# "Factor 4-Social Anxiety: Questions 24-31 (item 29 reverse scored)"
+    , 
+  data = phen_acc_bipolar,
+  na.action = na.exclude
+  )
+
+summary(factor_model_bipolar)
+
+bipolar_factor_df = phen_acc_bipolar[,names(factor_model_bipolar$model)]
+bipolar_factor_df = bipolar_factor_df[complete.cases(bipolar_factor_df),]
+factor_model_bipolar = lm(
+  rate_misclass ~ 
+    factor_avolition + # "average items SANS12, SANS13, SANS14, SANS15"
+    factor_bluntaffect + # "average items SANS1, SANS2, SANS3, SANS4, SANS5, SANS6"
+    factor_alogia + # "average items SANS8, SANS9, SANS10"
+    factor_anhedonia + # "average items SANS17, SANS18, SANS19, SANS20"
+    factor_attention + # "average items SANS22, SANS23"
+    factor_bizarrebehav + # "average SAPS items 21-24"
+    factor_posformalthought + # "average SAPS items 26-33"
+    factor_delusions + # "average SAPS items 8-19"
+    factor_hallucinations + # "average SAPS items 1, 2, 3, 4, 5, 6",
+    factor_inappaffect + # "item SAPS35"
+    bipollarii_mood + # "Factor 1-Mood Liability: Questions 1-9 (item 7 reverse scored)"
+    bipollarii_daydreaming + # "Factor 3-Daydreaming: Questions 18-23 (item 20 reverse scored)"
+    bipollarii_energy + # "Factor 2-Energy-Activity: Questions 10-17"
+    bipollarii_anxiety + age_x + Male# "Factor 4-Social Anxiety: Questions 24-31 (item 29 reverse scored)"
+    , 
+  data = bipolar_factor_df,
+  na.action = na.exclude
+  )
+
+bipolar_factor_step = step(factor_model_bipolar, direction = 'backward', trace = FALSE)
+bipolar_final_factor_model = lm(bipolar_factor_step$call$formula, data = phen_acc_bipolar)
+
+summary(bipolar_final_factor_model)
+sort(vif(bipolar_final_factor_model),decreasing =T)
+sort(lm.beta(bipolar_final_factor_model),decreasing =T)
+# modelEffectSizes(bipolar_final_factor_model, Digits = 2)
+```
+
+Note: We cannot start with all predictors from all scales because we would have more predictors than observations
+
+### SAPS
+
+#### Generate model string
+
+```{r}
+phen_acc_bipolar$saps10 = NULL # Thic solumn is all 0's
+bipolar_saps_predictor_string = paste(c(saps_predictors[saps_predictors %in% colnames(phen_acc_bipolar)], c('Male','age_x')), collapse = ' + ')
+bipolar_saps_model_string = paste(model_string_start, bipolar_saps_predictor_string, sep = '')
+```
+
+#### Backward stepwise regression
+
+```{r}
+phen_acc_bipolar_saps = phen_acc_bipolar[
+  ,c(
+    saps_predictors[saps_predictors %in% colnames(phen_acc_bipolar)], c('Male','age_x','rate_misclass')
+    )
+  ]
+phen_acc_bipolar_saps = phen_acc_bipolar_saps[complete.cases(phen_acc_bipolar_saps),]
+full_model_schiz_saps = lm(bipolar_saps_model_string, data = phen_acc_bipolar_saps, na.action=na.exclude)
+schiz_saps_step = step(full_model_schiz_saps, direction = 'backward', trace = FALSE)
+schiz_saps_step
+```
+
+#### Results from final model
+
+```{r}
+final_model_bipolar_saps = lm(schiz_saps_step$call$formula, data = phen_acc_bipolar_saps)
+
+summary(final_model_bipolar_saps)
+sort(vif(final_model_bipolar_saps),decreasing =T)
+sort(lm.beta(final_model_bipolar_saps),decreasing =T)
+# modelEffectSizes(final_model_bipolar_saps, Digits = 2)
+
+```
+
+
+### SANS
+
+#### Generate model string
+
+```{r}
+bipolar_sans_predictor_string = paste(c(sans_predictors[sans_predictors %in% colnames(phen_acc_bipolar)], c('Male','age_x')), collapse = ' + ')
+bipolar_sans_model_string = paste(model_string_start, bipolar_sans_predictor_string, sep = '')
+```
+
+#### Backward stepwise regression
+
+```{r}
+phen_acc_bipolar_sans = phen_acc_bipolar[
+  ,c(
+    sans_predictors[sans_predictors %in% colnames(phen_acc_bipolar)], c('Male','age_x','rate_misclass')
+    )
+  ]
+phen_acc_bipolar_sans = phen_acc_bipolar_sans[complete.cases(phen_acc_bipolar_sans),]
+full_model_schiz_sans = lm(bipolar_sans_model_string, data = phen_acc_bipolar_sans)
+schiz_sans_step = step(full_model_schiz_sans, direction = 'backward', trace = FALSE)
+schiz_sans_step
+```
+
+#### Results from final model
+
+```{r}
+final_model_bipolar_sans = lm(schiz_sans_step$call$formula, data = phen_acc_bipolar_sans)
+
+summary(final_model_bipolar_sans)
+sort(vif(final_model_bipolar_sans),decreasing =T)
+sort(lm.beta(final_model_bipolar_sans),decreasing =T)
+# modelEffectSizes(final_model_bipolar_sans, Digits = 2)
+
+```
+
+### BIPOLARII
+
+#### Generate model string
+
+```{r}
+bipolar_bipolar_predictor_string = paste(c(bipolar_predictors[bipolar_predictors %in% colnames(phen_acc_bipolar)], c('Male','age_x')), collapse = ' + ')
+bipolar_bipolar_model_string = paste(model_string_start, bipolar_bipolar_predictor_string, sep = '')
+```
+
+#### Backward stepwise regression
+
+```{r}
+full_model_schiz_bipolar = lm(bipolar_bipolar_model_string, data = phen_acc_bipolar)
+schiz_bipolar_step = step(full_model_schiz_bipolar, direction = 'backward', trace = FALSE)
+schiz_bipolar_step
+```
+
+#### Results from final model
+
+```{r}
+final_model_bipolar_bipolar = lm(formula = rate_misclass ~ bipolarii11 + bipolarii10 + bipolarii5 + 
+    bipolarii22 + bipolarii27 + bipolarii16 + bipolarii20 + bipolarii18 + 
+    bipolarii28 + age_x, data = phen_acc_bipolar)
+
+summary(final_model_bipolar_bipolar)
+sort(vif(final_model_bipolar_bipolar),decreasing =T)
+sort(lm.beta(final_model_bipolar_bipolar),decreasing =T)
+# modelEffectSizes(final_model_bipolar_bipolar, Digits = 2)
+
+```
+
+### SAPS + SAPS final models
+
+#### Backward stepwise regression
+
+```{r}
+bipolar_sans_saps_df = phen_acc_bipolar[,c(
+  'saps1_z','saps30_z','saps11_z',
+  'saps6_z','saps28_z','saps9_z','saps7_z','saps13','Male',
+  'sans2_z','sans16_z','sans17_z',
+  'sans22_z','sans5_z','sans7_z','sans9_z','sans20_z','sans14_z',
+  'sans4_z','sans6_z','sans23_z','sans3_z','sans15_z','sans8_z',
+  'age_x',
+  'rate_misclass'
+  )]
+bipolar_sans_saps_df = bipolar_sans_saps_df[complete.cases(bipolar_sans_saps_df),]
+# View(bipolar_sans_saps_df)
+full_model_bipolar_sans_saps = lm(formula = rate_misclass ~ saps1_z + saps30_z + saps11_z + 
+  saps6_z + saps28_z + saps9_z + saps7_z + saps13 + Male + 
+  sans2_z + sans16_z + sans17_z + 
+  sans22_z + sans5_z + sans7_z + sans9_z + sans20_z + sans14_z + 
+  sans4_z + sans6_z + sans23_z + sans3_z + sans15_z + sans8_z + 
+  age_x, data = na.omit(bipolar_sans_saps_df))
+bipolar_sans_saps_step = step(full_model_bipolar_sans_saps, direction = 'backward', trace = FALSE)
+bipolar_sans_saps_step
+```
+
+#### Results from final model
+
+```{r}
+final_model_bipolar_sans_saps = lm(
+  bipolar_sans_saps_step$call$formula, data = bipolar_sans_saps_df)
+
+summary(final_model_bipolar_sans_saps)
+sort(vif(final_model_bipolar_sans_saps),decreasing =T)
+sort(lm.beta(final_model_bipolar_sans_saps),decreasing =T)
+# modelEffectSizes(final_model_bipolar_sans_saps, Digits = 2)
+
+```
+
+### (SAPS + SANS) + BIPOLARII
+
+#### Backward stepwise regression
+
+```{r}
+full_model_bipolar_combined = lm(
+  formula = rate_misclass ~ 
+    # saps30_z + 
+    saps1_z + saps30_z + saps11_z + 
+    saps6_z + saps28_z + saps9_z + saps7_z + saps13 + sans2_z + 
+    sans16_z + sans22_z + sans5_z + sans7_z + sans20_z + sans4_z + 
+    sans6_z + sans8_z + 
+    bipolarii11 + bipolarii10 + bipolarii5 + 
+    bipolarii22 + bipolarii27 + bipolarii16 + bipolarii20 + bipolarii18 + 
+    bipolarii28 + age_x, data = phen_acc_bipolar)
+bipolar_combined_step = step(full_model_bipolar_combined, direction = 'backward', trace = FALSE)
+bipolar_combined_step
+```
+
+#### Results from final model
+
+The VIFs spike dramatically when combining the saps +sans model with the bipolarii items, indicating that there may be substantial crossover in information across the variables selected by the saps+sans process and the bipolarii items selected.
+The rerun is propagated from where I removed saps30_z from the saps + sans model. The resulting model has much lower VIFs, although some still higher than recommended.
+
+```{r}
+# bipolar_combined_df = phen_acc_bipolar[,c(
+#   'saps30_z','saps20_z','saps31_z','saps9_z','saps22_z',
+#   'saps27_z','saps8_z','saps34_z','sans18_z','sans17_z',
+#   'sans14_z','sans12_z','bipolarii11','bipolarii12','bipolarii10',
+#   'bipolarii17','bipolarii8','bipolarii2','bipolarii7','bipolarii5',
+#   'bipolarii3','bipolarii16','bipolarii31','bipolarii1','bipolarii6',
+#   'bipolarii15','bipolarii23','bipolarii30','bipolarii4','bipolarii9',
+#   'bipolarii13','bipolarii26','bipolarii14','bipolarii24','bipolarii25',
+#   'bipolarii18','bipolarii28','rate_misclass'
+#   )]
+# final_model_bipolar_combined = lm(formula = rate_misclass ~ saps30_z + saps20_z + saps31_z + 
+#     saps9_z + saps22_z + saps27_z + saps8_z + saps34_z + sans18_z + 
+#     sans17_z + sans14_z + sans12_z + bipolarii11 + bipolarii12 + 
+#     bipolarii10 + bipolarii17 + bipolarii8 + bipolarii2 + bipolarii7 + 
+#     bipolarii5 + bipolarii3 + bipolarii16 + bipolarii31 + bipolarii1 + 
+#     bipolarii6 + bipolarii15 + bipolarii23 + bipolarii30 + bipolarii4 + 
+#     bipolarii9 + bipolarii13 + bipolarii26 + bipolarii14 + bipolarii24 + 
+#     bipolarii25 + bipolarii18 + bipolarii28, data = na.omit(bipolar_combined_df))
+
+final_model_bipolar_combined = lm(bipolar_combined_step$call$formula, data = phen_acc_bipolar)
+
+summary(final_model_bipolar_combined)
+sort(vif(final_model_bipolar_combined),decreasing =T)
+sort(lm.beta(final_model_bipolar_combined) ,decreasing =T)
+# modelEffectSizes(final_model_bipolar_combined, Digits = 2)
+
+```
+
+
+#### Multicoinearity witch hunt
+
+```{r}
+# 
+# cor_matrix = round(cor(na.omit(bipolar_combined_df)), 1)
+# corrplot(cor_matrix, method = 'circle')
+```
+
+
+# Output consolidation
+
+## Function definitions
+
+```{r}
+lm_summary_dataframe = function(subject_subset_label, variable_subset_label, lm_object){
+  # subject_subset_label, variable_subset_label, terms, Adjusted_R_Squared, F, df_1, df_2, p_value, residual_SE, n_terms
+  summary_obj = summary(lm_object)
+  res_data_frame = data.frame(
+    subject_subset = c(subject_subset_label),
+    variable_subset = c(variable_subset_label),
+    terms = c(toString(lm_object$terms)),
+    adjusted_r_squared = c(summary_obj$adj.r.squared),
+    f = c(summary_obj$fstatistic['value']), 
+    df_1 = c(summary_obj$fstatistic['numdf']), 
+    df_2 = c(summary_obj$fstatistic['dendf']), 
+    p_value = c(pf(
+      summary_obj$fstatistic['value'],
+      summary_obj$fstatistic['numdf'],
+      summary_obj$fstatistic['dendf'],
+      lower.tail=F
+      )),
+    # residual_SE = c(), # TODO
+    n_terms = c(length(names(lm_object$model))-1) 
+  )
+  return(res_data_frame)
+}
+
+lm_detail_dataframe = function(subject_subset_label, variable_subset_label, lm_object){
+  # subject_subset, variable_subset, variable_name, Estimate, Std_Error, t_value, p_value, VIF, beta, partial_eta_squared
+  coef_df = as.data.frame(summary(lm_object)$coefficients)
+  coef_df = coef_df[c(2:length(rownames(coef_df))),]
+  coef_df$variable_name = rownames(coef_df)
+  coef_df$VIF = vif(lm_object)
+  coef_df$beta = lm.beta(lm_object)
+  # mes_object = modelEffectSizes(lm_object, Print=FALSE)
+  # coef_df$partial_eta_squared = mes_object$Effects[c(2:length(rownames(mes_object$Effects))),c('pEta-sqr')]
+  coef_df$subject_subset = subject_subset_label
+  coef_df$variable_subset = variable_subset_label
+  return(coef_df)
+}
+
+```
+
+## Consolidate Outputs
+
+```{r}
+
+# Schz
+
+## Factor
+schz_factor_out = lm_summary_dataframe("schz","factor",schz_final_factor_model)
+schz_factor_out_detail = lm_detail_dataframe("schz","factor",schz_final_factor_model)
+## SAPS
+schz_saps_out = lm_summary_dataframe("schz","saps",final_model_schz_saps)
+schz_saps_out_detail = lm_detail_dataframe("schz","saps",final_model_schz_saps)
+## SANS
+schz_sans_out = lm_summary_dataframe("schz","sans",final_model_schz_sans)
+schz_sans_out_detail = lm_detail_dataframe("schz","sans",final_model_schz_sans)
+## bipolarii
+schz_bipolarii_out = lm_summary_dataframe("schz","bipolarii",final_model_schz_bipolar)
+schz_bipolarii_out_detail = lm_detail_dataframe("schz","bipolarii",final_model_schz_bipolar)
+## SANS + SAPS
+schz_sans_saps_out = lm_summary_dataframe("schz","sans+saps",final_model_schz_sans_saps)
+schz_sans_saps_out_detail = lm_detail_dataframe("schz","sans+saps",final_model_schz_sans_saps)
+## (SANS + SAPS) + bipolarii
+schz_combined_out = lm_summary_dataframe("schz","(sans+saps)+bipolarii",final_model_schz_combined)
+schz_combined_out_detail = lm_detail_dataframe("schz","(sans+saps)+bipolarii",final_model_schz_combined)
+
+# Bipolar
+## Factor
+bipolar_factor_out = lm_summary_dataframe("bipolar","factor",bipolar_final_factor_model)
+bipolar_factor_out_detail = lm_detail_dataframe("bipolar","factor",bipolar_final_factor_model)
+## SAPS
+bipolar_saps_out = lm_summary_dataframe("bipolar","saps",final_model_bipolar_saps)
+bipolar_saps_out_detail = lm_detail_dataframe("bipolar","saps",final_model_bipolar_saps)
+## SANS
+bipolar_sans_out = lm_summary_dataframe("bipolar","sans",final_model_bipolar_sans)
+bipolar_sans_out_detail = lm_detail_dataframe("bipolar","sans",final_model_bipolar_sans)
+## bipolarii
+bipolar_bipolarii_out = lm_summary_dataframe("bipolar","bipolarii",final_model_bipolar_bipolar)
+bipolar_bipolarii_out_detail = lm_detail_dataframe("bipolar","bipolarii",final_model_bipolar_bipolar)
+## SANS + SAPS
+bipolar_sans_saps_out = lm_summary_dataframe("bipolar","sans+saps",final_model_bipolar_sans_saps)
+bipolar_sans_saps_out_detail = lm_detail_dataframe("bipolar","sans+saps",final_model_bipolar_sans_saps)
+## (SANS + SAPS) + bipolarii
+bipolar_combined_out = lm_summary_dataframe("bipolar","(sans+saps)+bipolarii",final_model_bipolar_combined)
+bipolar_combined_out_detail = lm_detail_dataframe("bipolar","(sans+saps)+bipolarii",final_model_bipolar_combined)
+
+model_level_output = bind_rows(
+  list(
+    schz_factor_out,
+    schz_saps_out,
+    schz_sans_out,
+    schz_bipolarii_out,
+    schz_sans_saps_out,
+    schz_combined_out,
+    bipolar_factor_out,
+    bipolar_saps_out,
+    bipolar_sans_out,
+    bipolar_bipolarii_out,
+    bipolar_sans_saps_out,
+    bipolar_combined_out
+  )
+)
+
+item_level_output = bind_rows(
+  list(
+    schz_factor_out_detail,
+    schz_saps_out_detail,
+    schz_sans_out_detail,
+    schz_bipolarii_out_detail,
+    schz_sans_saps_out_detail,
+    schz_combined_out_detail,
+    bipolar_factor_out_detail,
+    bipolar_saps_out_detail,
+    bipolar_sans_out_detail,
+    bipolar_bipolarii_out_detail,
+    bipolar_sans_saps_out_detail,
+    bipolar_combined_out_detail
+  )
+)
+
+write.csv(model_level_output, "UCLA_model_summary_statistics-v2.csv", row.names = FALSE)
+write.csv(item_level_output, "UCLA_model_item_statistics-v2.csv", row.names = FALSE)
+
+```
+
