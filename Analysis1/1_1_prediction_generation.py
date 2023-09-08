@@ -133,7 +133,7 @@ no_controls_df = no_controls_df[
 ]
 
 
-# #####training test split by diagnosis w/ controls still  
+# #####training test split by diagnosis with controls   
 # gss_holdout = GroupShuffleSplit(n_splits=10, train_size = .8, random_state = 812)
 # idx_1 = gss_holdout.split(
 #     X = no_controls_df[colnames],
@@ -148,7 +148,7 @@ no_controls_df = no_controls_df[
 #     ind +=1
 
 
-#####training test split by diagnosis w/ controls still  
+#####training test split by diagnosis with controls   
 gss_holdout = GroupShuffleSplit(n_splits=10, train_size = .8, random_state = 812)
 idx_1_nc = gss_holdout.split(
     X = no_controls_df[colnames],
@@ -198,7 +198,6 @@ for ind in cv_splitdict_nc.keys():
     info_df_train.to_csv(f'{base}NC-6_SplitInfo_Train_{ind}.csv',index=False)
     info_df_test.to_csv(f'{base}NC-6_SplitInfo_Test_{ind}.csv',index=False)
     
-###DIAGNOSIS STUFF w/SVC###
 # diag_datadict = {}
 # for ind in cv_splitdict.keys(): 
 #     diag_datadict[ind]= {
@@ -208,7 +207,6 @@ for ind in cv_splitdict_nc.keys():
 #         'y_test': full_data.iloc[cv_splitdict[ind][1]]['diagnosis'].values.ravel()
 #     }
 
-# ***** rerun this
 #   No controls
 diag_datadict_nc = {}
 for ind in cv_splitdict_nc.keys(): 
@@ -249,8 +247,6 @@ except :
 
 # diag_acc_df = pd.concat(diagconcatlist) 
 # diag_acc_df.to_csv(f'{base}Diag_Accuracy_V2.csv', index=False) 
-
-# Ran till here already
 
 # no control version 
 #hyperparam tune svc 
