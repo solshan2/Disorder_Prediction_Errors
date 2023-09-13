@@ -1,5 +1,6 @@
 ## Author List 
 Sarah M. Olshan1, Corey J. Richier1, Kyle A. Baacke2, Gregory A. Miller1,3,4, & Wendy Heller1
+
 1Department of Psychology, University of Illinois Urbana-Champaign
 2Department of Psychology, University of Wisconsin-Milwaukee
 3Department of Psychology, University of California, Los Angeles
