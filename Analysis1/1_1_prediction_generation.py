@@ -299,7 +299,6 @@ for ind in cv_splitdict_nc.keys():
 #         'y_test': full_data.iloc[cv_splitdict[ind][1]]['diagnosis'].values.ravel()
 #     }
 
-# ***** rerun this
 #   No controls
 
 # for ind in cv_splitdict_nc.keys(): 
@@ -341,8 +340,6 @@ diagconcatlist=[]
 
 # diag_acc_df = pd.concat(diagconcatlist) 
 # diag_acc_df.to_csv(f'{base}Diag_Accuracy_V2.csv', index=False) 
-
-# Ran till here already
 
 # no control version 
 #hyperparam tune svc 

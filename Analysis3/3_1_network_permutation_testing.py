@@ -283,7 +283,6 @@ res_df_full = pd.concat(res_dfs)
 # res_df_full = pd.concat([res_df_full,old_res_df])
 res_df_full.to_csv(f'{project_path}FeatureImportance_followup_Results.csv', index=False)
 
-# oops I forgot to log the size of the set that was permuted
 size_dict = {}
 for k in ind_dict.keys(): # Iterate through subsets 
   size_dict[f'{k}'] = [len(ind_dict[k])]
