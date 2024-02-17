@@ -53,7 +53,15 @@ This script evaluates accuracy as a result of different combinations of hyperpar
 
 This script runs the permutations for each of the different cells in the confusion matrix (for each correct classification and misclassification).
 
+### 1_4_results_processing.py 
+
+This scriptconsolidates results, meta-data, and confusion matrix attributes.  
+
 ## Analysis 2 
+
+### 2_0_regression_dataprep.py 
+
+This script computes relevant misclassification rates for regression analysis.  
 
 ### 2_1_individual_differences_regression.Rmd 
 
