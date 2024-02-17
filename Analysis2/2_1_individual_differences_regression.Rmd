@@ -25,8 +25,8 @@ library(dplyr)
 # phen_acc_bipolar <- read.csv('C:/Users/sarah/Local_Documents/Data/UCLA_Data/phen_acc_bipolar.csv')
 # phen_acc_schz <- read.csv('C:/Users/sarah/Local_Documents/Data/UCLA_Data/phen_acc_schz-v2.csv')
 # phen_acc_bipolar <- read.csv('C:/Users/sarah/Local_Documents/Data/UCLA_Data/phen_acc_bipolar-v2.csv')
-phen_acc_schz <- read.csv('phen_acc_schz-v2.csv')
-phen_acc_bipolar <- read.csv('phen_acc_bipolar-v2.csv')
+phen_acc_schz <- read.csv('C:/Users/kyle/UWM/SRP Paper 01-Group - Documents/UCLA_Decoding_v2/phen_acc_schz-v2.csv')
+phen_acc_bipolar <- read.csv('C:/Users/kyle/UWM/SRP Paper 01-Group - Documents/UCLA_Decoding_v2/phen_acc_bipolar-v2.csv')
 ```
 
 # Standardize values of interest
@@ -154,7 +154,27 @@ sort(vif(final_model_schz_saps),decreasing =T)
 sort(lm.beta(final_model_schz_saps),decreasing =T)
 # modelEffectSizes(final_model_schz_saps, Digits = 2)
 ```
+#### Handling multicolinearity
 
+```{r}
+final_model_schz_saps_2 = lm(
+  formula = rate_misclass ~ 
+    saps1_z + 
+    # saps30_z + 
+    saps11_z + 
+    saps18_z + saps29_z + saps23_z + saps31_z + saps33_z + saps5_z + 
+    # saps19_z + 
+    saps14_z + saps8_z + saps2_z + saps15_z + saps25_z + 
+    # saps3_z + 
+    saps34_z
+  , data = phen_acc_schz
+)
+
+summary(final_model_schz_saps_2)
+sort(vif(final_model_schz_saps_2),decreasing =T)
+sort(lm.beta(final_model_schz_saps_2),decreasing =T)
+# modelEffectSizes(final_model_schz_saps, Digits = 2)
+```
 
 ### SANS
 
@@ -183,6 +203,8 @@ sort(vif(final_model_schz_sans),decreasing =T)
 sort(lm.beta(final_model_schz_sans),decreasing =T)
 # modelEffectSizes(final_model_schz_sans, Digits = 2)
 ```
+
+#### Handling multicolinearity
 
 ### BIPOLARII
 
@@ -213,18 +235,22 @@ sort(lm.beta(final_model_schz_bipolar),decreasing =T)
 
 ```
 
+#### Handling multicolinearity
+
 ### SAPS + SAPS final models
 
 #### Backward stepwise regression
 
 ```{r}
-full_model_schiz_sans_saps = lm(formula = rate_misclass ~ saps17_z + saps1_z + saps30_z + 
-    saps11_z + saps18_z + saps31_z + saps33_z + saps10_z + saps5_z + 
-    saps27_z + saps19_z + saps7_z + saps15_z + saps32_z + saps25_z + 
-    saps34_z + saps24_z + sans2_z + sans22_z + sans1_z + sans7_z + 
-    sans13_z + sans19_z + sans3_z + sans24_z
- , 
-  data = phen_acc_schz)
+full_model_schiz_sans_saps = lm(
+  formula = rate_misclass ~ saps1_z + saps30_z + saps11_z + 
+    saps18_z + saps29_z + saps23_z + saps31_z + saps33_z + saps5_z + 
+    saps19_z + saps14_z + saps8_z + saps2_z + saps15_z + saps25_z + 
+    saps3_z + saps34_z + sans2_z + sans16_z + sans21_z + 
+    sans14_z + sans13_z + sans4_z + sans23_z + sans3_z + sans11_z + 
+    sans15_z + sans12_z + sans8_z + Male
+  ,data = phen_acc_schz
+)
 schiz_sans_saps_step = step(full_model_schiz_sans_saps, direction = 'backward', trace = FALSE)
 schiz_sans_saps_step
 ```
@@ -246,14 +272,15 @@ sort(lm.beta(final_model_schz_sans_saps),decreasing =T)
 #### Backward stepwise regression
 
 ```{r}
-full_model_schiz_combined = lm(rate_misclass ~ saps17_z + saps1_z + saps30_z + 
-    saps11_z + saps18_z + saps31_z + saps33_z + saps5_z + saps19_z + 
-    saps7_z + saps15_z + saps32_z + saps34_z + saps24_z + sans22_z + 
-    sans1_z + sans7_z + sans13_z + sans19_z + sans3_z + sans24_z + bipolarii12 + bipolarii10 + bipolarii7 + 
-    bipolarii5 + bipolarii22 + bipolarii3 + bipolarii19 + bipolarii16 + 
-    bipolarii31 + bipolarii1 + bipolarii21 + bipolarii29 + bipolarii9 + 
-    bipolarii13 + bipolarii14 + bipolarii24 + bipolarii25 + Male + 
-    age_x, data = phen_acc_schz)
+full_model_schiz_combined = lm(rate_misclass ~ saps30_z + saps11_z + saps18_z + 
+    saps31_z + saps33_z + saps19_z + saps14_z + saps8_z + saps15_z + 
+    saps3_z + sans2_z + sans16_z + sans21_z + sans14_z + sans23_z + 
+    sans3_z + sans11_z + sans15_z + sans12_z + sans8_z + Male + 
+    bipolarii11 + bipolarii12 + bipolarii10 + 
+    bipolarii8 + bipolarii27 + bipolarii19 + bipolarii1 + bipolarii6 + 
+    bipolarii15 + bipolarii21 + bipolarii20 + bipolarii13 + bipolarii14 + 
+    bipolarii24 + bipolarii25 + bipolarii18 + bipolarii28
+    , data = phen_acc_schz)
 schiz_combined_step = step(full_model_schiz_combined, direction = 'backward', trace = FALSE)
 schiz_combined_step
 ```
@@ -263,17 +290,36 @@ schiz_combined_step
 Interestingly, all the bipolarii items were eliminated in the stepwise regression procedure when including them in the full model with the selected saps and sans items.
 
 ```{r}
-final_model_schz_combined = lm(formula = rate_misclass ~ saps17_z + saps1_z + saps30_z + 
-    saps11_z + saps18_z + saps33_z + saps5_z + saps19_z + saps15_z + 
-    saps34_z + saps24_z + sans22_z + sans1_z + sans7_z + sans3_z + 
-    sans24_z + bipolarii7 + bipolarii5 + bipolarii22 + bipolarii3 + 
-    bipolarii19 + bipolarii16 + bipolarii31 + bipolarii1 + bipolarii21 + 
-    bipolarii29 + bipolarii9 + bipolarii13 + bipolarii14 + bipolarii24 + 
-    bipolarii25 + Male, data = phen_acc_schz)
+final_model_schz_combined = lm(formula = schiz_combined_step$call$formula, data = phen_acc_schz)
 
 summary(final_model_schz_combined)
 sort(vif(final_model_schz_combined),decreasing =T)
 sort(lm.beta(final_model_schz_combined),decreasing =T)
+# modelEffectSizes(final_model_schz_combined, Digits = 2)
+
+```
+
+#### Handling multicolinearity
+```{r}
+final_model_schz_combined_2 = lm(
+  formula = rate_misclass ~ 
+    # saps30_z + 
+    saps11_z +
+    # saps18_z + 
+    saps31_z + saps33_z + saps19_z + saps14_z + saps8_z + saps15_z + 
+    sans2_z + sans16_z + sans21_z + 
+    # sans3_z + 
+    # sans11_z + 
+    sans15_z + 
+    sans12_z + sans8_z + Male + bipolarii11 + bipolarii10 + bipolarii27 + 
+    bipolarii19 + bipolarii1 + bipolarii15 + bipolarii21 + bipolarii20 + 
+    bipolarii13 + bipolarii14 + bipolarii24 + 
+    # bipolarii18 + 
+    bipolarii28, data = phen_acc_schz)
+
+summary(final_model_schz_combined_2)
+sort(vif(final_model_schz_combined_2),decreasing =T)
+sort(lm.beta(final_model_schz_combined_2),decreasing =T)
 # modelEffectSizes(final_model_schz_combined, Digits = 2)
 
 ```
@@ -360,15 +406,15 @@ phen_acc_bipolar_saps = phen_acc_bipolar[
     )
   ]
 phen_acc_bipolar_saps = phen_acc_bipolar_saps[complete.cases(phen_acc_bipolar_saps),]
-full_model_schiz_saps = lm(bipolar_saps_model_string, data = phen_acc_bipolar_saps, na.action=na.exclude)
-schiz_saps_step = step(full_model_schiz_saps, direction = 'backward', trace = FALSE)
-schiz_saps_step
+full_model_bipolar_saps = lm(bipolar_saps_model_string, data = phen_acc_bipolar_saps, na.action=na.exclude)
+bipolar_saps_step = step(full_model_bipolar_saps, direction = 'backward', trace = FALSE)
+bipolar_saps_step
 ```
 
 #### Results from final model
 
 ```{r}
-final_model_bipolar_saps = lm(schiz_saps_step$call$formula, data = phen_acc_bipolar_saps)
+final_model_bipolar_saps = lm(bipolar_saps_step$call$formula, data = phen_acc_bipolar_saps)
 
 summary(final_model_bipolar_saps)
 sort(vif(final_model_bipolar_saps),decreasing =T)
@@ -396,15 +442,15 @@ phen_acc_bipolar_sans = phen_acc_bipolar[
     )
   ]
 phen_acc_bipolar_sans = phen_acc_bipolar_sans[complete.cases(phen_acc_bipolar_sans),]
-full_model_schiz_sans = lm(bipolar_sans_model_string, data = phen_acc_bipolar_sans)
-schiz_sans_step = step(full_model_schiz_sans, direction = 'backward', trace = FALSE)
-schiz_sans_step
+full_model_bipolar_sans = lm(bipolar_sans_model_string, data = phen_acc_bipolar_sans)
+bipolar_sans_step = step(full_model_bipolar_sans, direction = 'backward', trace = FALSE)
+bipolar_sans_step
 ```
 
 #### Results from final model
 
 ```{r}
-final_model_bipolar_sans = lm(schiz_sans_step$call$formula, data = phen_acc_bipolar_sans)
+final_model_bipolar_sans = lm(bipolar_sans_step$call$formula, data = phen_acc_bipolar_sans)
 
 summary(final_model_bipolar_sans)
 sort(vif(final_model_bipolar_sans),decreasing =T)
@@ -425,9 +471,9 @@ bipolar_bipolar_model_string = paste(model_string_start, bipolar_bipolar_predict
 #### Backward stepwise regression
 
 ```{r}
-full_model_schiz_bipolar = lm(bipolar_bipolar_model_string, data = phen_acc_bipolar)
-schiz_bipolar_step = step(full_model_schiz_bipolar, direction = 'backward', trace = FALSE)
-schiz_bipolar_step
+full_model_bipolar_bipolar = lm(bipolar_bipolar_model_string, data = phen_acc_bipolar)
+bipolar_bipolar_step = step(full_model_bipolar_bipolar, direction = 'backward', trace = FALSE)
+bipolar_bipolar_step
 ```
 
 #### Results from final model
@@ -448,24 +494,33 @@ sort(lm.beta(final_model_bipolar_bipolar),decreasing =T)
 
 #### Backward stepwise regression
 
+saps1_z + saps30_z + saps6_z + saps23_z + 
+saps20_z + saps10_z + saps26_z + saps9_z + saps22_z + saps7_z + 
+saps25_z + saps13 + Male + age_x +
+sans2_z + sans22_z + sans1_z + sans9_z + 
+sans13_z + sans4_z + sans15_z + sans8_z
+
+
 ```{r}
+
 bipolar_sans_saps_df = phen_acc_bipolar[,c(
-  'saps1_z','saps30_z','saps11_z',
-  'saps6_z','saps28_z','saps9_z','saps7_z','saps13','Male',
-  'sans2_z','sans16_z','sans17_z',
-  'sans22_z','sans5_z','sans7_z','sans9_z','sans20_z','sans14_z',
-  'sans4_z','sans6_z','sans23_z','sans3_z','sans15_z','sans8_z',
+  'saps1_z','saps30_z',
+  'saps6_z','saps23_z','saps20_z','saps10_z','saps26_z','saps9_z','saps22_z','saps7_z','saps25_z','saps13','Male',
+  'sans2_z','sans22_z','sans1_z',
+  'sans9_z','sans13_z','sans4_z','sans15_z','sans8_z',
   'age_x',
   'rate_misclass'
   )]
 bipolar_sans_saps_df = bipolar_sans_saps_df[complete.cases(bipolar_sans_saps_df),]
 # View(bipolar_sans_saps_df)
-full_model_bipolar_sans_saps = lm(formula = rate_misclass ~ saps1_z + saps30_z + saps11_z + 
-  saps6_z + saps28_z + saps9_z + saps7_z + saps13 + Male + 
-  sans2_z + sans16_z + sans17_z + 
-  sans22_z + sans5_z + sans7_z + sans9_z + sans20_z + sans14_z + 
-  sans4_z + sans6_z + sans23_z + sans3_z + sans15_z + sans8_z + 
-  age_x, data = na.omit(bipolar_sans_saps_df))
+full_model_bipolar_sans_saps = lm(
+  formula = rate_misclass ~ saps1_z + saps30_z + saps6_z + saps23_z + 
+    saps20_z + saps10_z + saps26_z + saps9_z + saps22_z + saps7_z + 
+    saps25_z + saps13 + Male + age_x +
+    sans2_z + sans22_z + sans1_z + sans9_z + 
+    sans13_z + sans4_z + sans15_z + sans8_z, 
+  data = na.omit(bipolar_sans_saps_df)
+)
 bipolar_sans_saps_step = step(full_model_bipolar_sans_saps, direction = 'backward', trace = FALSE)
 bipolar_sans_saps_step
 ```
@@ -490,14 +545,12 @@ sort(lm.beta(final_model_bipolar_sans_saps),decreasing =T)
 ```{r}
 full_model_bipolar_combined = lm(
   formula = rate_misclass ~ 
-    # saps30_z + 
-    saps1_z + saps30_z + saps11_z + 
-    saps6_z + saps28_z + saps9_z + saps7_z + saps13 + sans2_z + 
-    sans16_z + sans22_z + sans5_z + sans7_z + sans20_z + sans4_z + 
-    sans6_z + sans8_z + 
+    saps1_z + saps30_z + saps6_z + saps23_z + 
+    saps20_z + saps10_z + saps26_z + saps9_z + saps22_z + saps7_z + 
+    saps25_z + saps13 + Male + age_x + sans22_z + sans4_z + sans15_z + 
     bipolarii11 + bipolarii10 + bipolarii5 + 
     bipolarii22 + bipolarii27 + bipolarii16 + bipolarii20 + bipolarii18 + 
-    bipolarii28 + age_x, data = phen_acc_bipolar)
+    bipolarii28, data = phen_acc_bipolar)
 bipolar_combined_step = step(full_model_bipolar_combined, direction = 'backward', trace = FALSE)
 bipolar_combined_step
 ```
@@ -508,25 +561,6 @@ The VIFs spike dramatically when combining the saps +sans model with the bipolar
 The rerun is propagated from where I removed saps30_z from the saps + sans model. The resulting model has much lower VIFs, although some still higher than recommended.
 
 ```{r}
-# bipolar_combined_df = phen_acc_bipolar[,c(
-#   'saps30_z','saps20_z','saps31_z','saps9_z','saps22_z',
-#   'saps27_z','saps8_z','saps34_z','sans18_z','sans17_z',
-#   'sans14_z','sans12_z','bipolarii11','bipolarii12','bipolarii10',
-#   'bipolarii17','bipolarii8','bipolarii2','bipolarii7','bipolarii5',
-#   'bipolarii3','bipolarii16','bipolarii31','bipolarii1','bipolarii6',
-#   'bipolarii15','bipolarii23','bipolarii30','bipolarii4','bipolarii9',
-#   'bipolarii13','bipolarii26','bipolarii14','bipolarii24','bipolarii25',
-#   'bipolarii18','bipolarii28','rate_misclass'
-#   )]
-# final_model_bipolar_combined = lm(formula = rate_misclass ~ saps30_z + saps20_z + saps31_z + 
-#     saps9_z + saps22_z + saps27_z + saps8_z + saps34_z + sans18_z + 
-#     sans17_z + sans14_z + sans12_z + bipolarii11 + bipolarii12 + 
-#     bipolarii10 + bipolarii17 + bipolarii8 + bipolarii2 + bipolarii7 + 
-#     bipolarii5 + bipolarii3 + bipolarii16 + bipolarii31 + bipolarii1 + 
-#     bipolarii6 + bipolarii15 + bipolarii23 + bipolarii30 + bipolarii4 + 
-#     bipolarii9 + bipolarii13 + bipolarii26 + bipolarii14 + bipolarii24 + 
-#     bipolarii25 + bipolarii18 + bipolarii28, data = na.omit(bipolar_combined_df))
-
 final_model_bipolar_combined = lm(bipolar_combined_step$call$formula, data = phen_acc_bipolar)
 
 summary(final_model_bipolar_combined)
@@ -537,12 +571,23 @@ sort(lm.beta(final_model_bipolar_combined) ,decreasing =T)
 ```
 
 
-#### Multicoinearity witch hunt
+#### Handling multiconlearity
 
 ```{r}
-# 
-# cor_matrix = round(cor(na.omit(bipolar_combined_df)), 1)
-# corrplot(cor_matrix, method = 'circle')
+final_model_bipolar_combined_2 = lm(
+  formula = rate_misclass ~ 
+    saps1_z + saps30_z + saps23_z + 
+    saps20_z + saps10_z + saps26_z + saps9_z + saps22_z + 
+    # saps25_z + 
+    saps13 + Male + age_x + sans22_z + sans15_z + bipolarii16 + 
+    bipolarii28, 
+  data = phen_acc_bipolar
+)
+
+summary(final_model_bipolar_combined_2)
+sort(vif(final_model_bipolar_combined_2),decreasing =T)
+sort(lm.beta(final_model_bipolar_combined_2) ,decreasing =T)
+
 ```
 
 
@@ -615,6 +660,9 @@ schz_sans_saps_out_detail = lm_detail_dataframe("schz","sans+saps",final_model_s
 schz_combined_out = lm_summary_dataframe("schz","(sans+saps)+bipolarii",final_model_schz_combined)
 schz_combined_out_detail = lm_detail_dataframe("schz","(sans+saps)+bipolarii",final_model_schz_combined)
 
+schz_combined_out_2 = lm_summary_dataframe("schz","(sans+saps)+bipolarii",final_model_schz_combined_2)
+schz_combined_out_detail_2 = lm_detail_dataframe("schz","(sans+saps)+bipolarii",final_model_schz_combined_2)
+
 # Bipolar
 ## Factor
 bipolar_factor_out = lm_summary_dataframe("bipolar","factor",bipolar_final_factor_model)
@@ -635,6 +683,9 @@ bipolar_sans_saps_out_detail = lm_detail_dataframe("bipolar","sans+saps",final_m
 bipolar_combined_out = lm_summary_dataframe("bipolar","(sans+saps)+bipolarii",final_model_bipolar_combined)
 bipolar_combined_out_detail = lm_detail_dataframe("bipolar","(sans+saps)+bipolarii",final_model_bipolar_combined)
 
+bipolar_combined_out_2 = lm_summary_dataframe("bipolar","(sans+saps)+bipolarii",final_model_bipolar_combined_2)
+bipolar_combined_out_detail_2 = lm_detail_dataframe("bipolar","(sans+saps)+bipolarii",final_model_bipolar_combined_2)
+
 model_level_output = bind_rows(
   list(
     schz_factor_out,
@@ -643,12 +694,14 @@ model_level_output = bind_rows(
     schz_bipolarii_out,
     schz_sans_saps_out,
     schz_combined_out,
+    schz_combined_out_2,
     bipolar_factor_out,
     bipolar_saps_out,
     bipolar_sans_out,
     bipolar_bipolarii_out,
     bipolar_sans_saps_out,
-    bipolar_combined_out
+    bipolar_combined_out,
+    bipolar_combined_out_2
   )
 )
 
@@ -660,12 +713,14 @@ item_level_output = bind_rows(
     schz_bipolarii_out_detail,
     schz_sans_saps_out_detail,
     schz_combined_out_detail,
+    schz_combined_out_detail_2,
     bipolar_factor_out_detail,
     bipolar_saps_out_detail,
     bipolar_sans_out_detail,
     bipolar_bipolarii_out_detail,
     bipolar_sans_saps_out_detail,
-    bipolar_combined_out_detail
+    bipolar_combined_out_detail,
+    bipolar_combined_out_detail_2
   )
 )
 

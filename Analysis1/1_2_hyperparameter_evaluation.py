@@ -1,21 +1,21 @@
 import numpy as np
 import pandas as pd
 
-output_path = 'S:\\UCLA_Decoding\\'
+output_path = 'C:\\Users\\kyle\\UWM\\SRP Paper 01-Group - Documents\\UCLA_Decoding_v2\\'
 
-new_accuracy_path = output_path + 'Full_Diag_Accuracy_V2.csv'
-prediction_path = output_path + 'predictions.csv'
-confusion_path = output_path + 'confusion.csv'
-accuracy_metadata_path = output_path + 'accuracy_metadata.csv'
-accuracy_metadata_confusion_path = output_path + 'accuracy_metadata_confusion.csv'
-prediction_metadata_path = output_path + 'predictions_metadat_confusion.csv'
-confusion_pivot_path = output_path + 'confusion_pivot_01.csv'
+new_accuracy_path = output_path + 'Diag_Accuracy_V2.csv'
+prediction_path = output_path + 'predictions_v2 .csv'
+confusion_path = output_path + 'confusion_v2.csv'
+accuracy_metadata_path = output_path + 'accuracy_metadata_v2.csv'
+accuracy_metadata_confusion_path = output_path + 'accuracy_metadata_confusion_v2.csv'
+prediction_metadata_path = output_path + 'predictions_metadat_confusion_v2.csv'
+# confusion_pivot_path = output_path + 'confusion_pivot_01.csv'
 
 confusions_df = pd.read_csv(confusion_path)
 
 acc_meta_confusion = pd.read_csv(accuracy_metadata_confusion_path)
 
-acc_meta_confusion_nc = acc_meta_confusion[acc_meta_confusion['subjects_used_x']!='No CONTROL']
+acc_meta_confusion_nc = acc_meta_confusion[acc_meta_confusion['subjects_used_x']=='No CONTROL']
 
 acc_meta_confusion_nc_all = acc_meta_confusion_nc[acc_meta_confusion_nc['sessions_used_x']=='all']
 
@@ -25,9 +25,9 @@ for col in confusions_df.columns:
     if 'percent' in col:
       target_columns.append(col)
 
-acc_meta_confusion_nc_all['class_weight'].fillna('None', inplace=True)
+acc_meta_confusion_nc['class_weight'].fillna('None', inplace=True)
 
-hyperparam_df_pivot_1 = acc_meta_confusion_nc_all.pivot_table(
+hyperparam_df_pivot_1 = acc_meta_confusion_nc.pivot_table(
   index=['C','class_weight','kernel'],
   values=['testacc'],
   aggfunc=[np.mean,np.std]
@@ -35,7 +35,7 @@ hyperparam_df_pivot_1 = acc_meta_confusion_nc_all.pivot_table(
 
 hyperparam_df_pivot_1.style.format("{:.2f}")
 
-hyperparam_df_pivot_2 = acc_meta_confusion_nc_all.pivot_table(
+hyperparam_df_pivot_2 = acc_meta_confusion_nc.pivot_table(
   index=['C','class_weight','kernel'],
   values=target_columns,
   aggfunc=np.mean
@@ -49,7 +49,7 @@ target_columns_2 = [
   'SCHZ_SCHZ_percent','SCHZ_BIPOLAR_percent'
   ]
 
-hyperparam_df_pivot_3 = acc_meta_confusion_nc_all.pivot_table(
+hyperparam_df_pivot_3 = acc_meta_confusion_nc.pivot_table(
   index=['C','class_weight','kernel'],
   values=target_columns_2,
   aggfunc=np.mean

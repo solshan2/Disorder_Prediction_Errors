@@ -15,7 +15,7 @@ import json
 import hashlib
 from joblib import Parallel, delayed
 
-project_path = '/data/hx-hx1/kbaacke/datasets/UCLA_Decoding/'
+project_path = '/data/hx-hx1/solshan2/UCLA_Decoding_v2/'
 sep = '/'
 
 input_path = f'{project_path}'
@@ -26,7 +26,7 @@ acc_path = f'{project_path}'
 
 # Read in full data'
 uid = '69354adf'
-full_data = pd.read_csv(f'/data/hx-hx1/kbaacke/datasets/UCLA/{uid}_FunctionalConnectomes.csv')
+
 
 parcel_info = pd.read_csv('/data/hx-hx1/kbaacke/Code/Parcellation/Schaefer2018_200Parcels_7Networks_order_FSLMNI152_2mm.Centroid_RAS.csv')
 node_names = list(parcel_info['ROI Name'])
@@ -82,11 +82,11 @@ def permute_subset(df, column_index, random_state = 812):
   return full_df
 
 #### Testing ####
-ind = 1
-df = data_split_dict[ind]['train'][colnames]
-k = 'Vis_ALL' 
-column_index = ind_dict[k]
-random_state = 1
+# ind = 1
+# df = data_split_dict[ind]['train'][colnames]
+# k = 'Vis_ALL' 
+# column_index = ind_dict[k]
+# random_state = 1
 
 
 
@@ -151,9 +151,11 @@ def svc_predgen(train_x, train_y, test_x, test_y, split, label='', C=1, random_s
   return res_df
 
 
-cv_splitdict_nc = {}
-for ind in range(10):
-  cv_splitdict_nc[ind] = (pd.read_csv(f'{project_path}NC-6_SplitInfo_Train_{ind}.csv'), pd.read_csv(f'{project_path}NC-6_SplitInfo_Test_{ind}.csv'))
+# cv_splitdict_nc = {}
+# for ind in range(10):
+#   cv_splitdict_nc[ind] = (pd.read_csv(f'{project_path}NC-6_SplitInfo_Train_{ind}.csv'), pd.read_csv(f'{project_path}NC-6_SplitInfo_Test_{ind}.csv'))
+
+
 
 # Generate column indices to determine feature groupings #
 # read in index of edge identity
@@ -167,9 +169,9 @@ for network in index_df['Network1'].unique():
   ]
   ind_dict[f'{network}_ALL'] = list(between_network_connections.index)
 
-for network_connection in index_df['Network_Connection'].unique():
-  network_connections = index_df[index_df['Network_Connection']==network_connection]
-  ind_dict[network_connection] = list(network_connections.index)
+# for network_connection in index_df['Network_Connection'].unique():
+#   network_connections = index_df[index_df['Network_Connection']==network_connection]
+#   ind_dict[network_connection] = list(network_connections.index)
 
 for k in ind_dict.keys():
   print(k, len(ind_dict[k]))
@@ -199,11 +201,11 @@ for k in ind_dict.keys():
 
 
 data_split_dict = {}
-for ind in range(10):
-  # asign train and test values to the new dict with data instead of just indices
+for ind in range(20):
+  # assign train and test values to the new dict with data instead of just indices
   data_split_dict[ind] = {
-    'train':pd.merge(pd.read_csv(f'{project_path}NC-6_SplitInfo_Train_{ind}.csv'),full_data,how='left',on=['participant_id','Task','diagnosis']),
-    'test':pd.merge(pd.read_csv(f'{project_path}NC-6_SplitInfo_Test_{ind}.csv'),full_data,how='left',on=['participant_id','Task','diagnosis'])
+    'train':pd.read_csv(f'{project_path}NC-6_Train_{ind}.csv'),
+    'test':pd.read_csv(f'{project_path}NC-6_Test_{ind}.csv')
   }
 
 c = 1
@@ -215,22 +217,22 @@ for k in ind_dict.keys():
 
 print(length_list)
 length_list = [
-  66, 231, 264, 312, 
-  325, 348, 360, 406, 
-  420, 435, 552, 572, 
-  595, 638, 660, 754, 
-  770, 780, 870, 910, 
-  1012, 1015, 1035, 1050, 
-  1196, 1334, 1380, 1610, 
+  # 66, 231, 264, 312, 
+  # 325, 348, 360, 406, 
+  # 420, 435, 552, 572, 
+  # 595, 638, 660, 754, 
+  # 770, 780, 870, 910, 
+  # 1012, 1015, 1035, 1050, 
+  # 1196, 1334, 1380, 1610, 
   2322, 4147, 4849, 5365, 
   5535, 6370, 8119
 ]
 
 column_index_list = [x for x in range(19900)]
-res_df_dict = {}
+# res_df_dict = {}
 for k in ind_dict.keys(): # Iterate through subsets to permute
   print(k)
-  for i in range(10): # run all CV splits with 10 permutations of the target set each
+  for i in range(10,100,1): # run all CV splits with 10 permutations of the target set each
     print(f'\tRandomState set {i}')
     res_dfs = Parallel(n_jobs = 23)(
       delayed(svc_predgen)(
@@ -249,7 +251,7 @@ for k in ind_dict.keys(): # Iterate through subsets to permute
 
 for k in ind_dict.keys(): # Iterate through subsets to permute
   print(f'{k} - random equivalent')
-  for i in range(10): # run all CV splits with 10 permutations of the target set each
+  for i in range(10,100,1): # run all CV splits with 10 permutations of the target set each
     print(f'\tRandomState set {i}')
     res_dfs = Parallel(n_jobs = 23)(
       delayed(svc_predgen)(
@@ -277,7 +279,9 @@ for k in res_df_dict.keys():
 
 
 res_df_full = pd.concat(res_dfs)
-res_df_full.to_csv(f'{project_path}FeatureImportance_Results.csv', index=False)
+# old_res_df = pd.read_csv(f'{project_path}FeatureImportance_Results.csv')
+# res_df_full = pd.concat([res_df_full,old_res_df])
+res_df_full.to_csv(f'{project_path}FeatureImportance_followup_Results.csv', index=False)
 
 # oops I forgot to log the size of the set that was permuted
 size_dict = {}
